@@ -218,12 +218,12 @@ GPUs that will be used with the CoHDI management software.
 
 (1) The model name of the GPU registered in the CoHDI management
     software.  For FSAS's PRIMERGY CDI, you can obtain it with the
-    `cdictl spec list` command (e.g., "L40S").
-(2) The product name of the NVIDIA GPU (e.g., "NVIDIA L40S").
-    Reference:https://github.com/NVIDIA/open-gpu-kernel-modules
+    `cdictl spec list` command (e.g., "L40S").  
+(2) The product name of the NVIDIA GPU (e.g., "NVIDIA L40S").  
+    Reference:https://github.com/NVIDIA/open-gpu-kernel-modules  
 (3) A unique and arbitrary identifier for K8s (e.g., "nvidia-l40s").
     Choose an appropriate name.  It must follow the rules for DNS
-    label names.
+    label names.  
     Reference:https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
 
 deviceInfo is defined as an array in the following format.
@@ -675,7 +675,6 @@ No resources found
 ```bash
 helm uninstall cohdi -n cohdi
 ```
-
 
 ## License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FCoHDI%2Fcohdi-chart.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FCoHDI%2Fcohdi-chart?ref=badge_large)
