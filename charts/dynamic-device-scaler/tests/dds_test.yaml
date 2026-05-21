@@ -31,6 +31,36 @@ tests:
           value: composable-dra
         documentIndex: 0
 
+  # ClusterRole
+  - it: "renders ClusterRole dynamic-device-scaler-role with resourceslices list/watch rule without resourceNames"
+    documentSelector:
+      path: metadata.name
+      value: dynamic-device-scaler-role
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["resource.k8s.io"]
+            resources: ["resourceslices"]
+            verbs: ["list", "watch"]
+
+  - it: "renders ClusterRole dynamic-device-scaler-role with resourceclaims/driver rule scoped to gpu.nvidia.com"
+    documentSelector:
+      path: metadata.name
+      value: dynamic-device-scaler-role
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["resource.k8s.io"]
+            resources: ["resourceclaims/driver"]
+            resourceNames: ["gpu.nvidia.com"]
+            verbs: ["arbitrary-node:update", "arbitrary-node:patch"]
+
   # ClusterRoleBinding
   - it: "renders ClusterRoleBinding dds-manager-rolebinding for dds-controller-manager"
     set:
