@@ -445,11 +445,15 @@ spec:
         - name: SSL_CERT_FILE
           value: "/etc/ssl/certs/custom-ca/ca.crt"
         - name: FTI_CDI_TENANT_ID
-          value: {{ .Values.global.fti_cdi.env.TENANT_ID | quote}}
+          value: {{ .Values.global.fti_cdi.env.TENANT_ID | quote }}
+        - name: FTI_CDI_CLUSTER_ID
+          value: {{ .Values.global.fti_cdi.env.CLUSTER_ID | quote }}
         - name: FTI_CDI_ENDPOINT
         {{- with (first .Values.global.fti_cdi.hostAliases) }}
           value: "{{ .ip }}:443"
         {{- end }}
+        - name: NVIDIA_GPU_OPERATOR_NAMESPACE
+          value: {{ .Values.global.common.driver.gpu.nvidia.gpuOperator.namespace | quote }}
         ports:
         - name: webhook-server
           containerPort: 9443
@@ -511,6 +515,7 @@ webhooks:
     apiVersions: ["v1alpha1"]
     operations: ["CREATE","UPDATE"]
     resources: ["composabilityrequests"]
+{{- if .Values.common.deployPrivilegedAgent }}
 ---
 # DaemonSet
 apiVersion: apps/v1
@@ -551,6 +556,7 @@ spec:
               - matchExpressions:
                 - key: node-role.kubernetes.io/control-plane
                   operator: DoesNotExist
+{{- end }}
 ---
 # Role for common operations
 apiVersion: rbac.authorization.k8s.io/v1
@@ -590,6 +596,9 @@ metadata:
   namespace: nvidia-dra-driver-gpu
 rules:
   - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  - apiGroups: [""]
     resources: ["pods/exec"]
     verbs: ["create"]
   - apiGroups: ["apps"]
@@ -606,6 +615,38 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: composable-resource-operator-nvidia-dra-driver-role
+subjects:
+  - kind: ServiceAccount
+    name: composable-resource-operator-controller-manager
+    namespace: composable-resource-operator-system
+---
+# Role for GPU Operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.common.name }}-gpu-operator-role
+  namespace: {{ .Values.global.common.driver.gpu.nvidia.gpuOperator.namespace }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["update"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets/status"]
+    verbs: ["get"]
+---
+# RoleBinding for GPU Operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.common.name }}-gpu-operator-rolebinding
+  namespace: {{ .Values.global.common.driver.gpu.nvidia.gpuOperator.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Values.common.name }}-gpu-operator-role
 subjects:
   - kind: ServiceAccount
     name: composable-resource-operator-controller-manager

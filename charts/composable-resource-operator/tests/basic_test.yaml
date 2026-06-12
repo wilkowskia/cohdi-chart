@@ -184,6 +184,7 @@ tests:
         fti_cdi:
           env:
             TENANT_ID: "060ea5a5-46e4-42b4-8d95-70578718d8d0"
+            CLUSTER_ID: "test-cluster-uuid"
           hostAliases:
             - ip: "111.111.111.111"
               hostnames:
@@ -230,8 +231,18 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
+            name: FTI_CDI_CLUSTER_ID
+            value: "test-cluster-uuid"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
             name: FTI_CDI_ENDPOINT
             value: "111.111.111.111:443"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NVIDIA_GPU_OPERATOR_NAMESPACE
+            value: "gpu-operator"
 
   - it: renders ValidatingWebhookConfiguration with CA bundle and service
     set:
@@ -268,6 +279,9 @@ tests:
           path: webhooks[0].clientConfig.service.namespace
           value: composable-resource-operator-system
   - it: renders node agent DeamonSet
+    set:
+      common:
+        deployPrivilegedAgent: true
     documentSelector:
       path: kind
       value: DaemonSet
@@ -327,3 +341,245 @@ tests:
             key: "node-role.kubernetes.io/etcd"
             operator: "Exists"
             effect: "NoExecute"
+
+  - it: "renders manager ClusterRole with nodes and pods"
+    set:
+      common:
+        name: composable-resource-operator
+    documentSelector:
+      path: metadata.name
+      value: composable-resource-operator-manager-role
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["nodes","pods"]
+            verbs: ["get","list","watch"]
+  # NVIDIA DRA Driver RBAC
+  - it: "renders NVIDIA DRA Driver Role with pods delete in nvidia-dra-driver-gpu namespace"
+    set:
+      common:
+        name: composable-resource-operator
+    documentSelector:
+      path: metadata.name
+      value: composable-resource-operator-nvidia-dra-driver-role
+    asserts:
+      - isKind:
+          of: Role
+      - equal:
+          path: metadata.namespace
+          value: nvidia-dra-driver-gpu
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["pods"]
+            verbs: ["delete"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["pods/exec"]
+            verbs: ["create"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["daemonsets"]
+            verbs: ["update"]
+
+  # GPU Operator RBAC
+  - it: "renders GPU Operator Role with default namespace gpu-operator"
+    documentSelector:
+      path: metadata.name
+      value: composable-resource-operator-gpu-operator-role
+    asserts:
+      - isKind:
+          of: Role
+      - equal:
+          path: metadata.namespace
+          value: gpu-operator
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["pods/exec"]
+            verbs: ["create"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["daemonsets"]
+            verbs: ["update"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["daemonsets/status"]
+            verbs: ["get"]
+
+  - it: "renders GPU Operator RoleBinding with default namespace gpu-operator"
+    documentSelector:
+      path: metadata.name
+      value: composable-resource-operator-gpu-operator-rolebinding
+    asserts:
+      - isKind:
+          of: RoleBinding
+      - equal:
+          path: metadata.namespace
+          value: gpu-operator
+      - equal:
+          path: roleRef.name
+          value: composable-resource-operator-gpu-operator-role
+      - equal:
+          path: subjects[0].kind
+          value: ServiceAccount
+      - equal:
+          path: subjects[0].name
+          value: composable-resource-operator-controller-manager
+      - equal:
+          path: subjects[0].namespace
+          value: composable-resource-operator-system
+
+  - it: "renders GPU Operator Role and RoleBinding with overridden namespace"
+    set:
+      global:
+        common:
+          driver:
+            gpu:
+              nvidia:
+                gpuOperator:
+                  namespace: nvidia-gpu-operator
+    documentSelector:
+      path: metadata.name
+      value: composable-resource-operator-gpu-operator-role
+    asserts:
+      - isKind:
+          of: Role
+      - equal:
+          path: metadata.namespace
+          value: nvidia-gpu-operator
+
+  - it: "renders GPU Operator RoleBinding with overridden namespace"
+    set:
+      global:
+        common:
+          driver:
+            gpu:
+              nvidia:
+                gpuOperator:
+                  namespace: nvidia-gpu-operator
+    documentSelector:
+      path: metadata.name
+      value: composable-resource-operator-gpu-operator-rolebinding
+    asserts:
+      - isKind:
+          of: RoleBinding
+      - equal:
+          path: metadata.namespace
+          value: nvidia-gpu-operator
+
+---
+suite: cdi-operator deployPrivilegedAgent toggle
+templates:
+  - templates/generated-manifests-v5.yaml
+
+tests:
+  - it: does not render cro-node-agent DaemonSet by default
+    set:
+      common:
+        name: composable-resource-operator
+        webhook:
+          client:
+            caBundle: "dummy-client"
+      global:
+        common:
+          driver:
+            gpu:
+              nvidia:
+                gpuOperator:
+                  namespace: gpu-operator
+        fti_cdi:
+          env:
+            TENANT_ID: "060ea5a5-46e4-42b4-8d95-70578718d8d0"
+            CLUSTER_ID: "test-cluster-uuid"
+          hostAliases:
+            - ip: "111.111.111.111"
+              hostnames:
+                - "cdimgr.localdomain"
+    asserts:
+      - notMatchRegex:
+          path: metadata.name
+          pattern: ^cro-node-agent$
+        any: true
+
+  - it: does not render cro-node-agent DaemonSet when deployPrivilegedAgent is false
+    set:
+      common:
+        name: composable-resource-operator
+        deployPrivilegedAgent: false
+        webhook:
+          client:
+            caBundle: "dummy-client"
+      global:
+        common:
+          driver:
+            gpu:
+              nvidia:
+                gpuOperator:
+                  namespace: gpu-operator
+        fti_cdi:
+          env:
+            TENANT_ID: "060ea5a5-46e4-42b4-8d95-70578718d8d0"
+            CLUSTER_ID: "test-cluster-uuid"
+          hostAliases:
+            - ip: "111.111.111.111"
+              hostnames:
+                - "cdimgr.localdomain"
+    asserts:
+      - notMatchRegex:
+          path: metadata.name
+          pattern: ^cro-node-agent$
+        any: true
+
+  - it: renders cro-node-agent DaemonSet when deployPrivilegedAgent is true
+    set:
+      common:
+        name: composable-resource-operator
+        deployPrivilegedAgent: true
+        webhook:
+          client:
+            caBundle: "dummy-client"
+      global:
+        common:
+          driver:
+            gpu:
+              nvidia:
+                gpuOperator:
+                  namespace: gpu-operator
+        fti_cdi:
+          env:
+            TENANT_ID: "060ea5a5-46e4-42b4-8d95-70578718d8d0"
+            CLUSTER_ID: "test-cluster-uuid"
+          hostAliases:
+            - ip: "111.111.111.111"
+              hostnames:
+                - "cdimgr.localdomain"
+    documentSelector:
+      path: kind
+      value: DaemonSet
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: metadata.name
+          value: cro-node-agent
+      - equal:
+          path: metadata.namespace
+          value: composable-resource-operator-system
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.privileged
+          value: true
