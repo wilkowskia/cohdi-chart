@@ -6,25 +6,30 @@
 The **CoHDI Helm chart** deploys the CoHDI system - an integration
 layer for CDI management and device configuration in Kubernetes.
 
+## Supported Platform
+
+* RHOCP 4.22
+* SLES16 + RKE2 v1.35
+* RHEL10.2 + K8s v1.36
+* Ubuntu24.04 + K8s v1.36
+
 ## Prerequisite environmental information
 
 The following environment is required.
 
-* K8s v1.34 or higher
 * resource.k8s.io/v1alpha3=true is enabled as runtime-config for
   kube-apiserver
-* Enable feature gate for DRADeviceTaints
 * Enable feature gate for DRADeviceBindingConditions
-* Enable feature gate for DRAResourceClaimDeviceStatus
+* Enable feature gate for DRADeviceTaintRules
+* Enable feature gate for DRADeviceTaints
 
 # Getting Started
 
-## Installing the GPU driver
+## Installing the GPU driver (for SLES only)
 
-The GPU driver installation process depends on your environment.
+Please follow the GPU driver installation proocess.
 
 - [SLES Instructions](./docs/GPU_DRIVER_SLES.md)
-- [RHEL Instructions](./docs/GPU_DRIVER_RHEL.md) (in preparation)
 
 ## Setting the provider ID
 
