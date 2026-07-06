@@ -365,7 +365,7 @@ tests:
             resources: ["nodes","pods"]
             verbs: ["get","list","watch"]
   # NVIDIA DRA Driver RBAC
-  - it: "renders NVIDIA DRA Driver Role with pods delete in nvidia-dra-driver-gpu namespace"
+  - it: "renders NVIDIA DRA Driver Role with pods delete in dra-driver-nvidia-gpu namespace"
     set:
       common:
         name: composable-resource-operator
@@ -377,7 +377,7 @@ tests:
           of: Role
       - equal:
           path: metadata.namespace
-          value: nvidia-dra-driver-gpu
+          value: dra-driver-nvidia-gpu
       - contains:
           path: rules
           content:
